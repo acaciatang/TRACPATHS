@@ -17,7 +17,7 @@ import statistics
 import pandas as pd
 import copy
 import itertools
-from . import basicFx
+import basicFx
 
 #####################
 #parse options
@@ -30,7 +30,7 @@ def parseOptions():
     parser.add_argument('-r', '--red', type=bool, default=True, help='Whether to only use the red channel in analysis.')
     parser.add_argument('-m','--minSize', type=int, default=500, help='Minimum size of white region to be considered.')
     parser.add_argument('-M','--maxSize', type=int, default=2500, help='Maximum size of white region to be considered')
-    parser.add_argument('-i', '--i', type=int, default=5, help='How far around corners to search.')
+    parser.add_argument('-i', '--i', type=int, default=4, help='How far around corners to search.')
 
     opt = parser.parse_args()
     return opt
@@ -58,29 +58,29 @@ def findtags(img, red, minSize, maxSize):
     else:
         R = copy.deepcopy(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
     
-    print("Equalising")
+    #print("Equalising")
     # create a CLAHE object
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
     cl1 = clahe.apply(R)
     bkgd = cv2.cvtColor(cl1,cv2.COLOR_GRAY2RGB)
-    cv2.imwrite('test_equalised.png', cl1)
+    #cv2.imwrite('test_equalised.png', cl1)
 
-    print("Finging blobs")
+    #print("Finging blobs")
     #thresholding
     white = [findthres(cl1, t, minSize, maxSize) for t in [95, 143, 223]] #111, 175
     white = list(itertools.chain.from_iterable(white))
 
-    print("Redrawing to make convex")
+    #print("Redrawing to make convex")
     #redraw contours to make convex
     redraw = [cv2.convexHull(blob) for blob in white]
 
-    print("Drawing rectangles")
+    #print("Drawing rectangles")
     #draw rectangles around the points (tilt)    
     rects = [cv2.minAreaRect(blob) for blob in redraw if min(cv2.boundingRect(blob))> 0]
     ROIs = list()
     process = list()
 
-    print("Removing overlaps and determining whether to process further")
+    #print("Removing overlaps and determining whether to process further")
     #remove non-tags method 1
     i = 0
     for rect in rects:
@@ -109,7 +109,7 @@ def findtags(img, red, minSize, maxSize):
         
         i = i+1
 
-    print("Removing more overlaps")
+    #print("Removing more overlaps")
     # remove overlapping ROIs
     checkOverlap = pd.DataFrame([cv2.boundingRect(blob) for blob in ROIs])
     checkOverlap['centroidX'] = checkOverlap[0]+(checkOverlap[2]/2)
@@ -130,17 +130,17 @@ def findtags(img, red, minSize, maxSize):
 
     checkOverlap = checkOverlap.drop(set(removeIndex))
 
-    print("Removing ROIs containing circles")
+    #print("Removing ROIs containing circles")
     #check for shape
     Coordinates = list()
     
     for i in checkOverlap.index:
-        print(i)
+    #    print(i)
         pts = tuple(checkOverlap.loc[i])
         if min(pts) < 0:
             continue
         cropped = copy.deepcopy(img[(pts[1]-2):(pts[1]+pts[3]+2), (pts[0]-2):(pts[0]+pts[2]+2)])
-        if len(cropped) > 0:
+        if 0 in cropped.shape:
             continue
         #equalise
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
@@ -216,7 +216,7 @@ def drawmodel(id):
 def sortroi(pts, bkgd, img, TagList, models, i):
     """Takes in a ROI and outputs a row that can be combined into a pandas dataframe."""
     if not pts[6]:
-        print("Did not process")
+        #print("Did not process")
         centroidX = round(pts[4])
         centroidY = round(pts[5])
         cv2.rectangle(bkgd,(pts[0],pts[1]),(pts[0]+pts[2], pts[1]+pts[3]),(0,255,255),2)
@@ -233,7 +233,7 @@ def sortroi(pts, bkgd, img, TagList, models, i):
     open = cv2.morphologyEx(bw, cv2.MORPH_OPEN, (7,7))
     contours = cv2.findContours(open,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)[0]
     if len(contours) == 0:
-        print("Did not process")
+        #print("Did not process")
         centroidX = round(pts[4])
         centroidY = round(pts[5])
         cv2.rectangle(bkgd,(pts[0],pts[1]),(pts[0]+pts[2], pts[1]+pts[3]),(0,255,255),2)
@@ -245,11 +245,11 @@ def sortroi(pts, bkgd, img, TagList, models, i):
     epsilon = 0.01*cv2.arcLength(largest,True)
     approx = cv2.approxPolyDP(largest,epsilon,True)
 
-    polygon = cv2.drawContours(cropped, [approx], -1, (0,255,0), 1, cv2.LINE_AA)
+    #polygon = cv2.drawContours(cropped, [approx], -1, (0,255,0), 1, cv2.LINE_AA)
     vertexes = basicFx.extremepoints(approx)
     vertexes2 = basicFx.closesttosides(approx)
     
-    print("Test1")
+    #print("Test1")
     # get all possible positions of each of the four courners as a list of list of tuples
     vertexcombos = []
     for v in vertexes:
@@ -281,7 +281,7 @@ def sortroi(pts, bkgd, img, TagList, models, i):
         cv2.circle(bkgd,(frontX,frontY), 5, (255,255,0), -1)
         return [bkgd, [results[2], centroidX, centroidY, frontX, frontY, OneCM, results[0], None]] 
 
-    print("Test2")
+    #print("Test2")
     # get all possible positions of each of the four courners as a list of list of tuples
     vertexcombos = []
     for v in vertexes2:
@@ -327,12 +327,12 @@ def processimg(img, TagList, models, f, red, i, minSize, maxSize):
     """Processes one frame, returning two csv files of data on potential tags and read tags."""
     frameData = pd.DataFrame()
     cannotRead = pd.DataFrame()
-    print('Finding tags...')
+    #print('Finding tags...')
     Coordinates, bkgd = findtags(img, red, minSize, maxSize)
-    print('Reading tags...')
+    #print('Reading tags...')
     a = 0
     while a < len(Coordinates):
-        print(a)
+        #print(a)
         bkgd, row = sortroi(Coordinates[a], bkgd, img, TagList, models, i)
         if row[0] != 'not tag':
             completerow = pd.DataFrame([f] + row).transpose()
@@ -379,7 +379,7 @@ def sortrois(filename, outname, taglist, red, write, i, minSize, maxSize):
     allTagLists = pd.read_csv(taglist, header = 0, index_col = 0)
     index = os.path.splitext(os.path.basename(filename))[0]
     index = [i for i in allTagLists.index if i in name]
-    TagList = (allTagLists.loc[index]).dropna().astype(int).values.tolist()[0]
+    TagList = (allTagLists.loc[index]).dropna(axis=1).astype(int).values.tolist()[0]
     models = [drawmodel(id) for id in TagList]
     
     wrangled = pd.DataFrame()
@@ -395,16 +395,14 @@ def sortrois(filename, outname, taglist, red, write, i, minSize, maxSize):
     if not cap.isOpened():
         cap.open()
     while cap.isOpened():
-        print("Processing frame " + str(f))
+        #print("Processing frame " + str(f))
         ret, img = cap.read()
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-        
-        cv2.imwrite("processing.png", img)
             
     # Define the codec and create VideoWriter object
-        frameData, cannotRead, bkgd = processimg(cv2.imread("processing.png"), TagList, models, f, red, i, minSize, maxSize)
+        frameData, cannotRead, bkgd = processimg(img, TagList, models, f, red, i, minSize, maxSize)
         
         #remove all potential tags that overlap with an identified tag
         
@@ -424,66 +422,6 @@ def sortrois(filename, outname, taglist, red, write, i, minSize, maxSize):
     output.to_csv(path_or_buf = outname + "_raw.csv", na_rep = "NA", index = False)
     output2 = noID.rename(columns={0:'frame', 1:'ID', 2:'centroidX', 3:'centroidY', 4:'frontX', 5:'frontY', 6:'1cm', 7:'score', 8:'check'})
     output2.to_csv(path_or_buf = outname + "_noID.csv", na_rep = "NA", index = False)
-    return 0
-
-def sortrois_HPC(filename, outname, taglist, write, chunk, minSize, maxSize):
-    """Sorts all ROIs in a video."""
-    CHUNK = int(chunk)
-    allTagLists = pd.read_csv(taglist, header = 0, index_col = 0)
-    index = os.path.splitext(os.path.basename(filename))[0]
-    index = index[:-1]
-    TagList = (allTagLists.loc[index]).dropna().astype(int)
-    models = [drawmodel(id) for id in TagList]
-    
-    wrangled = pd.DataFrame()
-    noID = pd.DataFrame()
-    
-    f = 0
-    cap = cv2.VideoCapture(filename)
-    
-    if not cap.isOpened():
-        cap.open(filename)
-    while cap.isOpened():
-        print("Processing frame " + str(f))
-        ret, img = cap.read()
-        if not ret:
-            print("Can't receive frame (stream end?). Exiting ...")
-            break
-            
-        if f == 0:
-            print("Checking parameters...")
-            red = findparameters(img, TagList, models, filename)
-            print("Red: " + str(red))
-
-        if write:
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            out = cv2.VideoWriter(outname + "_" + str(chunk) + "_raw.mp4", fourcc, 20.0, (int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))))
-        
-        if CHUNK*1500 <= f < (CHUNK+1)*1500:
-        # Define the codec and create VideoWriter object
-            frameData, cannotRead, bkgd = processimg(img, TagList, models, f, red, minSize, maxSize)
-            
-            #remove all potential tags that overlap with an identified tag
-            
-            wrangled = pd.concat([wrangled, frameData], axis=0, ignore_index=True)
-            noID = pd.concat([noID, cannotRead], axis=0, ignore_index=True)
-            
-            if write:
-                bkgd = cv2.putText(bkgd,str(f),(int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)),int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,255,0),2,cv2.LINE_AA)
-                out.write(bkgd)
-            print("Finished frame " + str(f))
-        f = f+1
-        if f >= (CHUNK+1)*1500:
-            break
-    if write == True:
-        out.release()
-
-    cap.release()
-    cv2.destroyAllWindows()
-    output = wrangled.rename(columns={0:'frame', 1:'ID', 2:'centroidX', 3:'centroidY', 4:'frontX', 5:'frontY', 6:'1cm', 7:'score', 8:'check'})
-    output.to_csv(path_or_buf = outname + "_" + str(chunk) + "_raw.csv", na_rep = "NA", index = False)
-    output2 = noID.rename(columns={0:'frame', 1:'ID', 2:'centroidX', 3:'centroidY', 4:'frontX', 5:'frontY', 6:'1cm', 7:'score', 8:'check'})
-    output2.to_csv(path_or_buf = outname + "_" + str(chunk) + "_noID.csv", na_rep = "NA", index = False)
     return 0
 
 ######################

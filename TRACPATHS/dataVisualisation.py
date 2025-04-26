@@ -14,8 +14,6 @@ import cv2
 import numpy as np
 import pandas as pd
 import matplotlib.colors as mcolors
-import warnings
-warnings.filterwarnings("ignore", message="A value is trying to be set on a copy of a slice from a DataFrame.")
 
 #####################
 #parse options

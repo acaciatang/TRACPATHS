@@ -12,8 +12,10 @@ import sys
 import math
 import pandas as pd
 import copy
-from . import basicFx
+import basicFx
 import argparse
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 #####################
 #parse options

@@ -11,21 +11,24 @@ While TRAC is written specifically for 16-bit Beetag, PATHS can be used on data 
 
 ## Requirements
 TRAC-PATHS has been tested in MacOS and Linux environments, and has the following requirements:
-- python3
+- python3 (tested on python 3.8.20)
 - python modules: opencv-python, numpy, pandas, matplotlib
+
+To create the python environment, use requirements.txt like so:
+```
+conda create -n tracpaths python=3.8.20 pip
+conda activate tracpaths
+pip install -r requirements.txt
+```
 
 <br>
 
 ## Usage
 This repository includes an example video in the *Example* directory, which will be used in the example code below.
 
-Both TRAC and PATHS be called directly in terminal. To run TRAC, run the following from the *Code* directory:
+Both TRAC and PATHS can be called directly in terminal.
 
-```
-python3 TRAC.py
-```
-
-TRAC arguments:
+TRAC takes the following arguments:
 - -f, --filename': str, default path to Example/test.mp4
   - Path to video
 - -t, --taglist: str, default path to /../Example/TagList.csv
@@ -44,20 +47,16 @@ TRAC arguments:
   - How far around corners to search
 
 
-For example:
+For example, from this directory:
 ```
-python3 TRAC.py -f ../Example/test.mp4 -t ../Example/TagList.csv -w True -o ../Results/test -r True -m 500 -M 2500 -i 5
+python3 TRACPATHS/TRAC.py -f Example/test.mp4 -t Example/TagList.csv -w True -o Results/test -r True -m 500 -M 2500 -i 5
 ```
 
 The result should be three files in the *Results* directory, test_raw.csv, test_noID.csv, and test_raw.mp4. test_raw.csv contains data on identified tags, while test_noID.csv contains data on potential tags. test_raw.mp4 is a video with marked identified tags (in green, with the ID) and potential tags (in yellow).
 
-To predict tracks from existing data on identified and potential tag locations, run PATHS as follows:
+To predict tracks from existing data on identified and potential tag locations, run PATHS.
 
-```
-python3 PATHS.py
-```
-
-PATHS arguments:
+PATHS takes the following arguments:
 - -r, --rawname: str, default test_raw.csv
   - Path to video
 - -n, --noidname: str, default test_noID.csv
@@ -77,18 +76,14 @@ PATHS arguments:
 
 For example:
 ```
-python3 PATHS.py -r ../Results/test_raw.csv -n ../Results/test_noID.csv -o ../Results/test -j False -d1 30 -t1 30 -d2 100 -t2 100
+python3 TRACPATHS/PATHS.py -r Results/test_raw.csv -n Results/test_noID.csv -o Results/test -j False -d1 30 -t1 30 -d2 100 -t2 100
 ```
 
 This should output test.csv into the Results directory, which will contain the predicted locations of tags through time.
 
-TRACPATHS also includes modules for data visualization. They are drawCircles (which draws circles around the tags' predicted location), and drawTracks (which draws the predicted tracks through time). They can be called as below:
+TRACPATHS also includes modules for data visualization. They are drawCircles (which draws circles around the tags' predicted location), and drawTracks (which draws the predicted tracks through time).
 
-```
-python3 dataVisualisation.py
-```
-
-dataVisualisation arguments:
+dataVisualisation takes the following arguments:
 - -f, --filename: str, default path to Example/test.mp4
   - Path to video
 - -c, --csvname: str, default test.csv
@@ -98,7 +93,7 @@ dataVisualisation arguments:
 
 For example:
 ```
-python3 dataVisualisation.py -f ../Example/test.mp4 -c ../Results/test.csv -o ../Results/test
+python3 TRACPATHS/dataVisualisation.py -f Example/test.mp4 -c Results/test.csv -o Results/test
 ```
 
 This should give two videos: test_tracks.mp4 and test_circles.mp4. test_tracks.mp4 will show the paths taken by tags through time as predicted by TRAC-PATHS, and test_circles.mp4 will show circles around tags, labelled with their IDs.
