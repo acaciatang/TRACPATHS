@@ -19,8 +19,8 @@ import matplotlib.colors as mcolors
 #parse options
 def parseOptions():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--filename', type=str, default=os.path.dirname(__file__)+'/../Example/test.mp4', help='Path to video.')
-    parser.add_argument('-c', '--csvname', type=str, default='test.csv', help='Path to results from PATHS.')
+    parser.add_argument('-f', '--filename', type=str, default='Example/test.mp4', help='Path to video.')
+    parser.add_argument('-c', '--csvname', type=str, default='Results/test.csv', help='Path to results from PATHS.')
     parser.add_argument('-o', '--outname', type=str, default=None, help='What to name outputs and where to put them.')
     opt = parser.parse_args()
     return opt
@@ -136,7 +136,11 @@ def drawcircles(filename, csvname, outname):
         frame = cv2.putText(frame,str(i),(100,100), cv2.FONT_HERSHEY_SIMPLEX, 1,(0,255,0),2,cv2.LINE_AA)
         for j in range(len(subset.index)):
             cv2.circle(frame, (int(float(subset.iloc[j]["centroidX"])), int(float(subset.iloc[j]["centroidY"]))), radius, (255, 0, 0), 2)
-            cv2.putText(frame,str(int(subset.iloc[j]["ID"])),(int(subset.iloc[j]["frontX"]),int(subset.iloc[j]["frontY"])), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,0,0),2,cv2.LINE_AA)
+            try:
+                cv2.putText(frame,str(int(subset.iloc[j]["ID"])),(int(float(subset.iloc[j]["frontX"])),int(float(subset.iloc[j]["frontY"]))), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,0,0),2,cv2.LINE_AA)
+            except:
+                pass
+
             cv2.putText(frame,str(int(subset.iloc[j]["ID"])),(int(subset.iloc[j]["centroidX"]),int(subset.iloc[j]["centroidY"])), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,0),2,cv2.LINE_AA)
             
         # write the flipped frame

@@ -63,8 +63,6 @@ PATHS takes the following arguments:
   - Path to tag list
 - -o, --outname: str, default None
   - What to name outputs and where to put them
-- -j, --nojump: bool, default False
-  - Whether to run algorithm to remove jumps in a path
 - -d1, --dist1: int, default 30
   - Maximum distance to be considered part of a path
 - -t1, --time1: int, default 30
