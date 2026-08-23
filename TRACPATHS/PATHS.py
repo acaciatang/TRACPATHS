@@ -29,7 +29,7 @@ def removeduplicates(raw, noID):
     noID = pd.concat([noID, sus], axis = 0, ignore_index=True)
     return noDuplicates, noID
 
-def oneDir(thisRaw, noDup, allPot, dist1, time1, dist2, time2, f, outDir):
+def oneDir(thisRaw, noDup, allPot, dist1, time1, f, outDir):
     allNext = pd.concat([noDup[noDup["frame"] == f], allPot[allPot["frame"] == f]], ignore_index=True, copy=True)
     #List and rank proposals: distance, favour self
     thisX = np.array(thisRaw['centroidX'])
@@ -77,29 +77,21 @@ def oneDir(thisRaw, noDup, allPot, dist1, time1, dist2, time2, f, outDir):
                 allNext['frontY'] = 'X'
                 allNext['1cm'] = 'X'
 
-    nextRaws = allNext.iloc[[i for i in allNext.index if acceptors[i] is not None]]
+    nextRaws = allNext.iloc[[i for i in allNext.index if acceptors[i] is not None and allNext['ID'][i] != 'X']]
     
     ##left unmatched, not too old
     noneFound = thisRaw[f-thisRaw['frame'] < time1]
     for i in noneFound.index:
         if noneFound['ID'][i] in nextRaws['ID'].values:
             noneFound.drop(i, axis=0, inplace=True)
-
-    holdNext = pd.concat([nextRaws, noneFound], ignore_index = True)
-
-    ##new paths
-    newFinds = noDup[noDup["frame"] == f]
-    for i in newFinds.index:
-        if newFinds['ID'][i] in holdNext['ID'].values:
-            newFinds.drop(i, axis=0, inplace=True)
     
     outDir = pd.concat([outDir,thisRaw], ignore_index=True)
     
     del thisRaw
-    thisRaw = pd.concat([holdNext, newFinds], ignore_index=True)
+    thisRaw = pd.concat([nextRaws, noneFound], ignore_index = True)
     
-    del holdNext, newFinds, noneFound, acceptors, proposals
-    return outDir
+    del noneFound, acceptors, proposals
+    return outDir, thisRaw
 
 
 def wrangle(raw, noID, dist1, time1, dist2, time2, outname):
@@ -118,18 +110,18 @@ def wrangle(raw, noID, dist1, time1, dist2, time2, outname):
     #forward
     thisRaw = noDup[noDup["frame"] == min(noDup['frame'])]
 
-    for f in range(int(min(noDup['frame'])+1),int(max(max(noDup['frame']), max(allPot['frame'])))):
-        outFoward = oneDir(thisRaw, noDup, allPot, dist1, time1, dist2, time2, f, outForward)
+    for f in range(int(min(noDup['frame'])+1),int(max(max(noDup['frame']), max(allPot['frame']))+1)):
+        outForward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, f, outForward)
 
 
     #backward
     thisRaw = pd.concat([noDup[noDup["frame"] == max(noDup["frame"])],pd.DataFrame()], ignore_index=True)
 
-    for f in reversed(range(int(min(noDup['frame'])+1), int(max(max(noDup['frame']), max(allPot['frame']))))):
-        outBackward = oneDir(thisRaw, noDup, allPot, dist1, time1, dist2, time2, f, outBackward)
+    for f in reversed(range(int(min(noDup['frame'])), int(max(max(noDup['frame']), max(allPot['frame']))+1))):
+        outBackward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, f, outBackward)
 
     #wrangle
-    combine = pd.concat([outFoward, outBackward], ignore_index=True)
+    combine = pd.concat([outForward, outBackward], ignore_index=True)
     combine.drop_duplicates(inplace=True)
 
     multiples = combine[combine.duplicated(subset=['ID', 'frame'], keep=False)]
