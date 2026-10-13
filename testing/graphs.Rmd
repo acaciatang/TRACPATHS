@@ -7,8 +7,8 @@ output: html_document
 ```{r, include=FALSE}
 library(ggplot2)
 library(readr)
-library(car)
 library(dunn.test)
+library(forcats)
 ```
 
 ### Load results
@@ -27,36 +27,48 @@ testwindow <- read_csv('testwindow.csv')
 testwindow$testValue = as.integer(testwindow$testValue)
 testwindow = testwindow[testwindow$testValue < 50000,]
 
+
+
 testhzTime <- read_csv('testhz/Results/testhz_time.csv')
 testhz <- read_csv('testhz.csv')
 
 crall <- read_csv('testCrall.csv')
 manual <- read_csv('fromFrames.csv')
+linear <- read_csv('testlinear.csv')
 ```
 
 ### testi1 graphs
 #### Time graph
 ```{r}
 #testi
-ggplot(testiTime, aes(x=i**2, y=seconds)) +
+ggplot(testiTime, aes(x=(1+2*i)**2, y=seconds)) +
   geom_jitter(width=0.05, alpha=0.2)+geom_smooth(method='lm', se=TRUE, level=0.95) +
-  xlab("Search area (ixi pixels)") + ylab("Processing time (s)") +
+  xlab("Search area (pixels)") + ylab("Processing time (s)") +
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
 #testsize
-ggplot(testsizeTime, aes(x=size**2, y=seconds)) +
-  geom_jitter(width=0.005, alpha=0.2)+geom_smooth(method='lm', se=TRUE, level=0.95) +
-  xlab("Square of scale relative to original") + ylab("Processing time (s)") +
+ggplot(testsizeTime, aes(x=size/10, y=seconds)) +
+  geom_jitter(width=0.005, alpha=0.2)+geom_smooth(formula = y ~ x**2, se=TRUE, level=0.95) +
+  xlab("Scale relative to original") + ylab("Processing time (s)") +
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
 #testwindow
-ggplot(testwindowTime, aes(x=log(2*window), y=log(seconds))) +
+ggplot(testwindowTime, aes(x=log(window), y=log(seconds))) +
   geom_jitter(width=0.005, alpha=0.2)+geom_smooth(method='lm', se=TRUE, level=0.95) +
   xlab("log(Frames processed)") + ylab("log(Processing time (s))") +
+  theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+lm(log(testwindowTime$seconds) ~ log(testwindowTime$window))
+
+
+ggplot(testwindowTime, aes(x=window, y=seconds)) +
+  geom_jitter(width=0.005, alpha=0.2)+geom_smooth(method='lm', se=TRUE, level=0.95) +
+  xlab("Frames processed") + ylab("Processing time (s)") +
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
@@ -73,72 +85,7 @@ ggplot(testhzTime, aes(x=30/`1/hz`, y=seconds))+
 ```
 
 #### Error graph
-```{r}
-ggplot(testi, aes(x=testValue, y=count, color=metric)) +
-  geom_jitter(width = 0.05, alpha = 0.2)+geom_smooth(aes(fill=metric, se=TRUE, level=0.95)) +
-  xlab("Search area (ixi pixels)") + 
-  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*0.25, name="Number of False Positives")) + 
-  theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank())
-
-
-TP = testi[testi$metric == 'truePos',]
-anovaModel <- aov(formula = count ~ testValue, data = TP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = TP)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = TP)
-
-print(tapply(TP$count, TP$testValue, mean))
-print(tapply(FN$count, FN$testValue, mean))
-print(tapply(FP$count, FP$testValue, mean))
-print(tapply(mislabel$count, mislabel$testValue, mean))
-
-FN = testi[testi$metric == 'falseNeg',]
-anovaModel <- aov(formula = count ~ testValue, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = FN)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FN)
-
-print(tapply(FN$count, FN$testValue, mean))
-
-
-
-FP = testi[testi$metric == 'falsePos',]
-anovaModel <- aov(formula = count ~ testValue, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FP)
-
-print(tapply(FP$count, FP$testValue, mean))
-
-ML = testi[testi$metric == 'mislabelled',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-
-print(tapply(ML$count, ML$testValue, mean))
-```
-
+#####testsize
 ```{r}
 ggplot(testsize, aes(x=testValue/10, y=count, color=metric)) +
   geom_jitter(width = 0.005, alpha = 0.2)+geom_smooth(aes(fill=metric, se=TRUE, level=0.95)) +
@@ -149,20 +96,20 @@ ggplot(testsize, aes(x=testValue/10, y=count, color=metric)) +
         panel.grid.minor = element_blank())
 
 
-TP = testsize[testsize$metric == 'True Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = TP)
+#TP = testsize[testsize$metric == 'True Positive',]
+#anovaModel <- aov(formula = count ~ testValue, data = TP)
 ##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
+#shapiro.test(residuals(anovaModel))
+#qqnorm(residuals(anovaModel))
+#qqline(residuals(anovaModel))
 ##test homogeneity of variances
 #leveneTest(count ~ testValue, data = TP)
 
 ##kruskal-wallis
-kruskal.test(count ~ testValue, data = TP)
-dunn.test(TP$count, TP$testValue)
+#kruskal.test(count ~ testValue, data = TP)
+#dunn.test(TP$count, TP$testValue)
 
-print(tapply(TP$count, TP$testValue, mean))
+#print(tapply(TP$count, TP$testValue, mean))
 
 FN = testsize[testsize$metric == 'False Negative',]
 anovaModel <- aov(formula = count ~ testValue, data = FN)
@@ -184,12 +131,12 @@ print(tapply(FN$count, FN$testValue, mean))
 FP = testsize[testsize$metric == 'False Positive',]
 anovaModel <- aov(formula = count ~ testValue, data = FP)
 ##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
+#shapiro.test(residuals(anovaModel))
 qqnorm(residuals(anovaModel))
 qqline(residuals(anovaModel))
 ##kruskal-wallis
 kruskal.test(count ~ testValue, data = FP)
-dunn.test(FP$count, FP$testValue)
+#dunn.test(FP$count, FP$testValue)
 
 print(tapply(FP$count, FP$testValue, mean))
 
@@ -205,6 +152,76 @@ kruskal.test(count ~ testValue, data = ML)
 print(tapply(ML$count, ML$testValue, mean))
 ```
 
+
+
+#####testi
+```{r}
+ggplot(testi, aes(x=(1+2*testValue)**2, y=count, color=metric)) +
+  geom_jitter(width = 0.05, alpha = 0.2)+geom_smooth(aes(fill=metric, se=TRUE, level=0.95)) +
+  xlab("Search area (pixels)") + 
+  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*0.25, name="Number of False Positives")) + 
+  theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+#TP = testi[testi$metric == 'truePos',]
+#anovaModel <- aov(formula = count ~ testValue, data = TP)
+##test normal distribution of dependent variable
+#shapiro.test(residuals(anovaModel))
+#qqnorm(residuals(anovaModel))
+#qqline(residuals(anovaModel))
+##test homogeneity of variances
+#leveneTest(count ~ testValue, data = TP)
+
+##kruskal-wallis
+#kruskal.test(count ~ testValue, data = TP)
+
+#print(tapply(TP$count, TP$testValue, mean))
+#print(tapply(FN$count, FN$testValue, mean))
+#print(tapply(FP$count, FP$testValue, mean))
+#print(tapply(mislabel$count, mislabel$testValue, mean))
+
+FN = testi[testi$metric == 'False Negative',]
+anovaModel <- aov(formula = count ~ testValue, data = FN)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+##test homogeneity of variances
+#leveneTest(count ~ testValue, data = FN)
+
+##kruskal-wallis
+kruskal.test(count ~ testValue, data = FN)
+
+print(tapply(FN$count, FN$testValue, mean))
+
+
+
+FP = testi[testi$metric == 'False Positive',]
+anovaModel <- aov(formula = count ~ testValue, data = FP)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+##kruskal-wallis
+kruskal.test(count ~ testValue, data = FP)
+
+print(tapply(FP$count, FP$testValue, mean))
+
+ML = testi[testi$metric == 'Mislabelling',]
+anovaModel <- aov(formula = count ~ testValue, data = ML)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+##kruskal-wallis
+kruskal.test(count ~ testValue, data = ML)
+
+print(tapply(ML$count, ML$testValue, mean))
+```
+
+#####testwindow
 ```{r}
 testwindow$testValue = testwindow$testValue*2
 testwindow$testValue = as.factor(testwindow$testValue)
@@ -213,26 +230,26 @@ ggplot(testwindow, aes(x=testValue, y=count, color=metric, fill=metric)) +
   #geom_bar(stat='identity')+
   geom_boxplot(alpha = 0.1)+geom_point(alpha = 0.5, position=position_jitterdodge()) + 
   xlab("Frames processed") + 
-  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*0.25, name="Number of False Positives")) + 
+  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*1, name="Number of False Positives")) + 
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
 
-TP = testwindow[testwindow$metric == 'True Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = TP)
+#TP = testwindow[testwindow$metric == 'True Positive',]
+#anovaModel <- aov(formula = count ~ testValue, data = TP)
 ##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
+#shapiro.test(residuals(anovaModel))
+#qqnorm(residuals(anovaModel))
+#qqline(residuals(anovaModel))
 ##test homogeneity of variances
 #leveneTest(count ~ testValue, data = TP)
 
 ##kruskal-wallis
-kruskal.test(count ~ testValue, data = TP)
-dunn.test(TP$count, TP$testValue)
+#kruskal.test(count ~ testValue, data = TP)
+#dunn.test(TP$count, TP$testValue)
 
-print(tapply(TP$count, TP$testValue, mean))
+#print(tapply(TP$count, TP$testValue, mean))
 
 FN = testwindow[testwindow$metric == 'False Negative',]
 anovaModel <- aov(formula = count ~ testValue, data = FN)
@@ -248,9 +265,22 @@ kruskal.test(count ~ testValue, data = FN)
 dunn.test(FN$count, FN$testValue)
 
 print(tapply(FN$count, FN$testValue, mean))
+```
 
+```{r}
+ML = testwindow[testwindow$metric == 'Mislabelling',]
+anovaModel <- aov(formula = count ~ testValue, data = ML)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+##kruskal-wallis
+kruskal.test(count ~ testValue, data = ML)
+dunn.test(ML$count, ML$testValue)
+print(tapply(ML$count, ML$testValue, mean))
+```
 
-
+```{r}
 FP = testwindow[testwindow$metric == 'False Positive',]
 anovaModel <- aov(formula = count ~ testValue, data = FP)
 ##test normal distribution of dependent variable
@@ -262,19 +292,9 @@ kruskal.test(count ~ testValue, data = FP)
 dunn.test(FP$count, FP$testValue)
 
 print(tapply(FP$count, FP$testValue, mean))
-
-ML = testwindow[testwindow$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-
-print(tapply(ML$count, ML$testValue, mean))
 ```
 
+#####testhz
 ```{r}
 ggplot(testhz, aes(x=30/testValue, y=count, color=metric)) +
   geom_jitter(width = 0.005, alpha = 0.2)+geom_smooth(aes(fill=metric, se=TRUE, level=0.95)) +
@@ -285,18 +305,18 @@ ggplot(testhz, aes(x=30/testValue, y=count, color=metric)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-TP = testhz[testhz$metric == 'True Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = TP)
+#TP = testhz[testhz$metric == 'True Positive',]
+#anovaModel <- aov(formula = count ~ testValue, data = TP)
 ##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
+#shapiro.test(residuals(anovaModel))
+#qqnorm(residuals(anovaModel))
+#qqline(residuals(anovaModel))
 ##test homogeneity of variances
 #leveneTest(count ~ testValue, data = TP)
 
 ##kruskal-wallis
-kruskal.test(count ~ testValue, data = TP)
-print(tapply(TP$count, TP$testValue, mean))
+#kruskal.test(count ~ testValue, data = TP)
+#print(tapply(TP$count, TP$testValue, mean))
 
 FN = testhz[testhz$metric == 'False Negative',]
 anovaModel <- aov(formula = count ~ testValue, data = FN)
@@ -308,8 +328,21 @@ qqline(residuals(anovaModel))
 
 ##kruskal-wallis
 kruskal.test(count ~ testValue, data = FN)
-
+dunn.test(FN$count, FN$testValue)
 print(tapply(FN$count, FN$testValue, mean))
+
+
+ML = testhz[testhz$metric == 'Mislabelling',]
+anovaModel <- aov(formula = count ~ testValue, data = ML)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+
+##kruskal-wallis
+kruskal.test(count ~ testValue, data = ML)
+dunn.test(ML$count, ML$testValue)
+print(tapply(ML$count, ML$testValue, mean))
 
 
 FP = testhz[testhz$metric == 'False Positive',]
@@ -327,33 +360,24 @@ kruskal.test(count ~ testValue, data = FP)
 dunn.test(FP$count, FP$testValue)
 
 print(tapply(FP$count, FP$testValue, mean))
-
-ML = testhz[testhz$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-dunn.test(ML$count, ML$testValue)
-print(tapply(ML$count, ML$testValue, mean))
 ```
 
+#####compare everything
 ```{r}
 #compare best of everything to manual video
 TRAC <- testsize[testsize$testValue==10,]
 TRAC$test = 'TRAC only'
-PATHS <- testhz[testhz$testValue==1,]
+PATHS <- testwindow[testwindow$testValue==100,]
 PATHS$test = 'TRAC-PATHS'
 
-plotme <- rbind(crall, TRAC, PATHS, manual)
+plotme <- rbind(crall, TRAC, PATHS, manual, linear)
 plotme = plotme[plotme$metric != 'truePos',]
+plotme$test = factor(plotme$test, levels = c("Manual Labels", "Original BEEtag", "TRAC only", "Linear Interpolation", "TRAC-PATHS"))
 
 ggplot(data=plotme, aes(x=test, y=count, colour=metric, fill=metric))+
   geom_boxplot(alpha = 0.1)+geom_point(alpha = 0.5, position=position_jitterdodge()) + 
   xlab("Algorithm used") + 
-  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*0.25, name="Number of False Positives")) + 
+  scale_y_continuous(name = "% Rate", sec.axis = sec_axis(~.*1, name="Number of False Positives")) + 
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank()
@@ -394,22 +418,6 @@ print(summary(anovaModel))
 TukeyHSD(anovaModel)
 ```
 
-```{r}
-#FP
-FP = plotme[plotme$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ test, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-hist(residuals(anovaModel))
-##test homogeneity of variances
-leveneTest(count ~ test, data = FP)
-
-#kruskal-wallis
-kruskal.test(count ~ test, data = FP)
-dunn.test(FP$count, FP$test)
-```
 
 ```{r}
 
@@ -430,6 +438,24 @@ kruskal.test(count ~ test, data = ML)
 dunn.test(ML$count, ML$test)
 
 ```
+
+```{r}
+#FP
+FP = plotme[plotme$metric == 'False Positive',]
+anovaModel <- aov(formula = count ~ test, data = FP)
+##test normal distribution of dependent variable
+shapiro.test(residuals(anovaModel))
+qqnorm(residuals(anovaModel))
+qqline(residuals(anovaModel))
+hist(residuals(anovaModel))
+##test homogeneity of variances
+leveneTest(count ~ test, data = FP)
+
+#kruskal-wallis
+kruskal.test(count ~ test, data = FP)
+dunn.test(FP$count, FP$test)
+```
+
 
 ```{r} 
 #TP

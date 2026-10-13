@@ -3,7 +3,6 @@ pd.options.mode.chained_assignment = None
 import numpy as np
 import argparse
 import os
-from collections import OrderedDict
 import sys
 
 #####################
@@ -20,8 +19,8 @@ def parseOptions():
 
     opt = parser.parse_args()
     return opt
-
 ######################
+
 def removeduplicates(raw, noID):
     sus = raw[raw.duplicated(subset=['ID', 'frame'], keep=False)]
     sus['ID'] = 'X'
@@ -29,8 +28,48 @@ def removeduplicates(raw, noID):
     noID = pd.concat([noID, sus], axis = 0, ignore_index=True)
     return noDuplicates, noID
 
-def oneDir(thisRaw, noDup, allPot, dist1, time1, f, outDir):
+def chooseOne(subset):
+    out = None
+    return out
+
+def oneDir(thisRaw, noDup, allPot, dist1, time1, scores, f, outDir):
+    class proposer:
+        def __init__(self, INDEX):
+            self.index = INDEX
+            self.ID = thisRaw.ID[self.index]
+
+            self.proposalIDs = [i for i in range(len(allNext.index)) if float(distM[i,INDEX]) < dist1]
+            if len(self.proposalIDs) == 0:
+                self.done = True
+            else:
+                self.done = False
+            self.dist = [float(distM[i,INDEX]) for i in self.proposalIDs]
+            combined_lists = list(zip(self.dist, self.proposalIDs))
+            sorted_lists = sorted(combined_lists, key=lambda x: x[0])
+            self.sortedProposals = [item[1] for item in sorted_lists]
+            
+            self.matchID = [allNext.ID[i] for i in self.proposalIDs]
+            
+            if self.ID == 'X':
+                self.score = 0
+            else:
+                self.score = scores[self.ID]
+                if self.ID in self.matchID:
+                    samePos = self.matchID.index(self.ID)
+                    best = self.sortedProposals.pop(samePos)
+                    self.sortedProposals.insert(0,best)
+
+    class acceptor:
+        def __init__(self, INDEX):
+            self.match = None
+            self.index = INDEX
+            self.ID = allNext.ID[self.index]
+
+    outDir = pd.concat([outDir,thisRaw], ignore_index=True)
     allNext = pd.concat([noDup[noDup["frame"] == f], allPot[allPot["frame"] == f]], ignore_index=True, copy=True)
+    if len(allNext.index) == 0:
+        return outDir, thisRaw
+
     #List and rank proposals: distance, favour self
     thisX = np.array(thisRaw['centroidX'])
     thisY = np.array(thisRaw['centroidY'])
@@ -41,61 +80,59 @@ def oneDir(thisRaw, noDup, allPot, dist1, time1, f, outDir):
     nextY = np.swapaxes(holdY,0,1)
     distM = np.sqrt((thisX - nextX)**2 + (thisY - nextY)**2) #columns is this frame
     
-
-    proposals = OrderedDict([(int(j), [[allNext.index[i], float(distM[i,j])] for i in range(len(allNext.index)) if float(distM[i,j]) < dist1]) for j in range(len(thisRaw.index))])
     
-
     #Gale-Shapley
-    acceptors = {i:None for i in allNext.index}
-    allDone = np.array([False for i in proposals])
-    while not allDone.all():
-        for proposer in proposals:
-            proposerList = proposals[proposer]
-            if len(proposerList) == 0:
-                allDone[proposer] = True
-                continue
-            current = proposerList[0]
-            if acceptors[current[0]] is None:
-                acceptors[current[0]] = [proposer, current[1]]
-                allDone[proposer] = True
-            elif  acceptors[current[0]][1] < current[1]:
-                acceptors[current[0]] = [proposer, current[1]]
-                allDone[acceptors[current[0]][0]] = False
-                allDone[proposer] = True
-            proposals[proposer].remove(current)
-            del current
+    proposers = [proposer(i) for i in thisRaw.index]
+    acceptors = [acceptor(i) for i in allNext.index]
+    while not np.array([p.done for p in proposers]).all():
+        for p in proposers:
+            if len(p.sortedProposals) > 0:
+                if not p.done:
+                    current = acceptors[p.sortedProposals[0]]
+                    if current.match is None:
+                        current.match = p
+                        p.done = True
+                    elif current.match.score < p.score:
+                        current.match.done = False
+                        current.match = p
+                        p.done = True
+                    p.sortedProposals.remove(current.index)
+                    del current
+            else:
+                p.done = True
     
-    del allDone
-    
-    #Update data
-    ##extended
-    for i in acceptors:
-        if acceptors[i] is not None:
-            if allNext['ID'][i] != thisRaw['ID'][acceptors[i][0]]:
-                allNext.loc[i, "ID"] = thisRaw['ID'][acceptors[i][0]]
-                allNext['frontX'] = 'X'
-                allNext['frontY'] = 'X'
-                allNext['1cm'] = 'X'
+    ##Update data
+    for a in acceptors:
+        if a.match is not None:
+            if a.ID != a.match.ID:
+                allNext.loc[a.index, "ID"] = a.match.ID
+                allNext.loc[a.index, "frontX"] = 'X'
+                allNext.loc[a.index, "frontY"] = 'X'
+                allNext.loc[a.index, "1cm"] = 'X'
 
-    nextRaws = allNext.iloc[[i for i in allNext.index if acceptors[i] is not None and allNext['ID'][i] != 'X']]
-    
+    matched = allNext.iloc[[i for i in allNext.index if acceptors[i].match is not None]]
+    foundtags = noDup[noDup["frame"] == f]
+    nextRaws = pd.concat([matched, foundtags], ignore_index=False)
+    nextRaws.drop_duplicates(subset=['ID', 'frame'], keep='first', inplace=True) # will keep match over TRAC result
+
     ##left unmatched, not too old
     noneFound = thisRaw[f-thisRaw['frame'] < time1]
     for i in noneFound.index:
         if noneFound['ID'][i] in nextRaws['ID'].values:
             noneFound.drop(i, axis=0, inplace=True)
     
-    outDir = pd.concat([outDir,thisRaw], ignore_index=True)
-    
     del thisRaw
-    thisRaw = pd.concat([nextRaws, noneFound], ignore_index = True)
+    nextRaws = pd.concat([nextRaws, noneFound], ignore_index = True)
+    nextRaws.drop_duplicates(subset=['ID', 'frame'], keep='first', inplace=True) # will keep match over TRAC result
     
-    del noneFound, acceptors, proposals
-    return outDir, thisRaw
-
+    del noneFound, acceptors, proposers
+    return outDir, nextRaws
 
 def wrangle(raw, noID, dist1, time1, dist2, time2, outname):
     #Demote duplicate occurance
+    raw.drop(labels='check', axis=1, inplace=True)
+    noID.drop(labels='check', axis=1, inplace=True)
+
     noDup, allPot = removeduplicates(raw, noID)
     
     allPot['ID'] = 'X'
@@ -106,33 +143,71 @@ def wrangle(raw, noID, dist1, time1, dist2, time2, outname):
     outForward = pd.DataFrame()
     outBackward = pd.DataFrame()
 
-
     #forward
     thisRaw = noDup[noDup["frame"] == min(noDup['frame'])]
+    scores = noDup.apply(pd.Series.value_counts).ID.dropna()
 
     for f in range(int(min(noDup['frame'])+1),int(max(max(noDup['frame']), max(allPot['frame']))+1)):
-        outForward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, f, outForward)
+        #print(f)
+        outForward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, scores, f, outForward)
 
-
+    outForward['dir'] = 'forward'
+    
     #backward
     thisRaw = pd.concat([noDup[noDup["frame"] == max(noDup["frame"])],pd.DataFrame()], ignore_index=True)
 
-    for f in reversed(range(int(min(noDup['frame'])), int(max(max(noDup['frame']), max(allPot['frame']))+1))):
-        outBackward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, f, outBackward)
+    for f in reversed(range(int(min(noDup['frame'])), int(max(max(noDup['frame']), max(allPot['frame']))))):
+        #print(f)
+        outBackward, thisRaw = oneDir(thisRaw, noDup, allPot, dist1, time1, scores, f, outBackward)
+    
+    outBackward['dir'] = 'backward'
 
-    #wrangle
+    #choose one path if there are two
     combine = pd.concat([outForward, outBackward], ignore_index=True)
-    combine.drop_duplicates(inplace=True)
+    combine.drop_duplicates(subset=['ID', 'frame', 'centroidX', 'centroidY'], inplace=True)
 
     multiples = combine[combine.duplicated(subset=['ID', 'frame'], keep=False)]
-    addFound = multiples[multiples['frontX'] != 'X']
-        
-    combine.drop_duplicates(subset=['ID', 'frame'],keep=False,inplace=True)
-    toInterpolate = pd.concat([addFound, combine], ignore_index=True)
+    combine.drop_duplicates(subset=['ID', 'frame'], keep=False, inplace=True)
 
+    ids = set(multiples.ID)
+    for id in ids:
+        oneID = multiples[multiples['ID'] == id]
+        forward = oneID[oneID['dir'] == 'forward']
+        backward = oneID[oneID['dir'] == 'backward']
+        backward.sort_values(by='frame', inplace=True)
+        forward['group'] = forward['frame'].diff().gt(1).cumsum()
+        backward['group'] = backward['frame'].diff().gt(1).cumsum()
+        for i in set(forward['group']):
+            fn = forward[forward['group'] == i]
+            bn = backward[backward['group'] == i]
+            fn.drop('group', axis=1, inplace=True)
+            bn.drop('group', axis=1, inplace=True)
+            
+            #choose one with more IDed tags
+            if len(fn[fn['frontX'] != 'X']) > len(bn[bn['frontX'] != 'X']):
+                combine = pd.concat([fn, combine], ignore_index=True)
+                continue
+            elif len(fn[fn['frontX'] != 'X']) < len(bn[bn['frontX'] != 'X']):
+                combine = pd.concat([bn, combine], ignore_index=True)
+                continue
+            else: #choose one with smaller distance
+                fx = fn.centroidX
+                fy = fn.centroidY
+                fdist = (fx.diff()**2).sum() + (fy.diff()**2).sum()
+                bx = bn.centroidX
+                by = bn.centroidY
+                bdist = (bx.diff()**2).sum() + (by.diff()**2).sum()
+                if bdist < fdist:
+                    combine = pd.concat([bn, combine], ignore_index=True)
+                    continue
+                else: #choose forward
+                    combine = pd.concat([fn, combine], ignore_index=True)
+                    continue
+
+    #interpolate
     out = pd.DataFrame()
-    for i in set(toInterpolate['ID']):
-        subset = toInterpolate[toInterpolate['ID'] == i]
+    for i in set(combine['ID']):
+        subset = combine[combine['ID'] == i]
         if len(subset.index) > 1:
             subset.sort_values('frame', inplace=True, ignore_index=True)
             all = range(int(min(subset.frame)),int(max(subset.frame)+1))
