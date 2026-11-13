@@ -8,7 +8,7 @@ output: html_document
 library(ggplot2)
 library(readr)
 library(dunn.test)
-library(forcats)
+library(rstatix)
 ```
 
 ### Load results
@@ -37,8 +37,7 @@ manual <- read_csv('fromFrames.csv')
 linear <- read_csv('testlinear.csv')
 ```
 
-### testi1 graphs
-#### Time graph
+#### Time graphs
 ```{r}
 #testi
 ggplot(testiTime, aes(x=(1+2*i)**2, y=seconds)) +
@@ -63,7 +62,8 @@ ggplot(testwindowTime, aes(x=log(window), y=log(seconds))) +
   theme(panel.background = element_rect(fill = "white", colour = 'black', linetype = 'solid'),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
-lm(log(testwindowTime$seconds) ~ log(testwindowTime$window))
+model = lm(log(testwindowTime$seconds) ~ log(testwindowTime$window))
+summary(model)
 
 
 ggplot(testwindowTime, aes(x=window, y=seconds)) +
@@ -95,60 +95,19 @@ ggplot(testsize, aes(x=testValue/10, y=count, color=metric)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-
-#TP = testsize[testsize$metric == 'True Positive',]
-#anovaModel <- aov(formula = count ~ testValue, data = TP)
-##test normal distribution of dependent variable
-#shapiro.test(residuals(anovaModel))
-#qqnorm(residuals(anovaModel))
-#qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = TP)
-
-##kruskal-wallis
-#kruskal.test(count ~ testValue, data = TP)
-#dunn.test(TP$count, TP$testValue)
-
-#print(tapply(TP$count, TP$testValue, mean))
-
 FN = testsize[testsize$metric == 'False Negative',]
-anovaModel <- aov(formula = count ~ testValue, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = FN)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FN)
-dunn.test(FN$count, FN$testValue)
-
+friedman.test(count ~ testValue | vidID, data = FN)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FN, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FN$count, FN$testValue, mean))
 
-
-
 FP = testsize[testsize$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = FP)
-##test normal distribution of dependent variable
-#shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FP)
-#dunn.test(FP$count, FP$testValue)
-
+friedman.test(count ~ testValue | vidID, data = FP)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FP, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FP$count, FP$testValue, mean))
 
 ML = testsize[testsize$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-
+friedman.test(count ~ testValue | vidID, data = ML)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = ML, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(ML$count, ML$testValue, mean))
 ```
 
@@ -164,60 +123,19 @@ ggplot(testi, aes(x=(1+2*testValue)**2, y=count, color=metric)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-
-#TP = testi[testi$metric == 'truePos',]
-#anovaModel <- aov(formula = count ~ testValue, data = TP)
-##test normal distribution of dependent variable
-#shapiro.test(residuals(anovaModel))
-#qqnorm(residuals(anovaModel))
-#qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = TP)
-
-##kruskal-wallis
-#kruskal.test(count ~ testValue, data = TP)
-
-#print(tapply(TP$count, TP$testValue, mean))
-#print(tapply(FN$count, FN$testValue, mean))
-#print(tapply(FP$count, FP$testValue, mean))
-#print(tapply(mislabel$count, mislabel$testValue, mean))
-
 FN = testi[testi$metric == 'False Negative',]
-anovaModel <- aov(formula = count ~ testValue, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = FN)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FN)
-
+friedman.test(count ~ testValue | vidID, data = FN)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FN, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FN$count, FN$testValue, mean))
 
-
-
 FP = testi[testi$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FP)
-
+friedman.test(count ~ testValue | vidID, data = FP)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FP, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FP$count, FP$testValue, mean))
 
 ML = testi[testi$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-
+friedman.test(count ~ testValue | vidID, data = ML)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = ML, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(ML$count, ML$testValue, mean))
 ```
 
@@ -235,64 +153,22 @@ ggplot(testwindow, aes(x=testValue, y=count, color=metric, fill=metric)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-
-#TP = testwindow[testwindow$metric == 'True Positive',]
-#anovaModel <- aov(formula = count ~ testValue, data = TP)
-##test normal distribution of dependent variable
-#shapiro.test(residuals(anovaModel))
-#qqnorm(residuals(anovaModel))
-#qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = TP)
-
-##kruskal-wallis
-#kruskal.test(count ~ testValue, data = TP)
-#dunn.test(TP$count, TP$testValue)
-
-#print(tapply(TP$count, TP$testValue, mean))
-
 FN = testwindow[testwindow$metric == 'False Negative',]
-anovaModel <- aov(formula = count ~ testValue, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = FN)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FN)
-dunn.test(FN$count, FN$testValue)
-
+friedman.test(count ~ testValue | vidID, data = FN)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FN, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FN$count, FN$testValue, mean))
-```
 
-```{r}
+FP = testwindow[testwindow$metric == 'False Positive',]
+friedman.test(count ~ testValue | vidID, data = FP)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FP, paired = TRUE,p.adjust.method = "holm"), n=100)
+print(tapply(FP$count, FP$testValue, mean))
+
 ML = testwindow[testwindow$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-dunn.test(ML$count, ML$testValue)
+friedman.test(count ~ testValue | vidID, data = ML)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = ML, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(ML$count, ML$testValue, mean))
 ```
 
-```{r}
-FP = testwindow[testwindow$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FP)
-dunn.test(FP$count, FP$testValue)
-
-print(tapply(FP$count, FP$testValue, mean))
-```
 
 #####testhz
 ```{r}
@@ -305,61 +181,20 @@ ggplot(testhz, aes(x=30/testValue, y=count, color=metric)) +
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-#TP = testhz[testhz$metric == 'True Positive',]
-#anovaModel <- aov(formula = count ~ testValue, data = TP)
-##test normal distribution of dependent variable
-#shapiro.test(residuals(anovaModel))
-#qqnorm(residuals(anovaModel))
-#qqline(residuals(anovaModel))
-##test homogeneity of variances
-#leveneTest(count ~ testValue, data = TP)
-
-##kruskal-wallis
-#kruskal.test(count ~ testValue, data = TP)
-#print(tapply(TP$count, TP$testValue, mean))
-
 FN = testhz[testhz$metric == 'False Negative',]
-anovaModel <- aov(formula = count ~ testValue, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FN)
-dunn.test(FN$count, FN$testValue)
+friedman.test(count ~ testValue | vidID, data = FN)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FN, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(FN$count, FN$testValue, mean))
 
+FP = testhz[testhz$metric == 'False Positive',]
+friedman.test(count ~ testValue | vidID, data = FP)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = FP, paired = TRUE,p.adjust.method = "holm"), n=100)
+print(tapply(FP$count, FP$testValue, mean))
 
 ML = testhz[testhz$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ testValue, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = ML)
-dunn.test(ML$count, ML$testValue)
+friedman.test(count ~ testValue | vidID, data = ML)
+print(pairwise_wilcox_test(formula=count ~ testValue, data = ML, paired = TRUE,p.adjust.method = "holm"), n=100)
 print(tapply(ML$count, ML$testValue, mean))
-
-
-FP = testhz[testhz$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ testValue, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-FP$groups = as.factor(FP$testValue)
-leveneTest(count ~ groups, data = FP)
-
-##kruskal-wallis
-kruskal.test(count ~ testValue, data = FP)
-dunn.test(FP$count, FP$testValue)
-
-print(tapply(FP$count, FP$testValue, mean))
 ```
 
 #####compare everything
@@ -401,74 +236,18 @@ print(TP)
 ```
 
 ```{r}
-#anovas
-
-#FN
 FN = plotme[plotme$metric == 'False Negative',]
-anovaModel <- aov(formula = count ~ test, data = FN)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-leveneTest(count ~ test, data = FN)
-print(summary(anovaModel))
+friedman.test(count ~ test | vidID, data = FN)
+print(pairwise_wilcox_test(formula=count ~ test, data = FN, paired = TRUE,p.adjust.method = "holm"), n=100)
+print(tapply(FN$count, FN$test, mean))
 
-#post-hoc t-test
-TukeyHSD(anovaModel)
-```
-
-
-```{r}
-
-#ML
-ML = plotme[plotme$metric == 'Mislabelling',]
-anovaModel <- aov(formula = count ~ test, data = ML)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-hist(residuals(anovaModel))
-##test homogeneity of variances
-leveneTest(count ~ test, data = ML)
-print(summary(anovaModel))
-
-##kruskal-wallis
-kruskal.test(count ~ test, data = ML)
-dunn.test(ML$count, ML$test)
-
-```
-
-```{r}
-#FP
 FP = plotme[plotme$metric == 'False Positive',]
-anovaModel <- aov(formula = count ~ test, data = FP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-hist(residuals(anovaModel))
-##test homogeneity of variances
-leveneTest(count ~ test, data = FP)
+friedman.test(count ~ test | vidID, data = FP)
+print(pairwise_wilcox_test(formula=count ~ test, data = FP, paired = TRUE,p.adjust.method = "holm"), n=100)
+print(tapply(FP$count, FP$test, mean))
 
-#kruskal-wallis
-kruskal.test(count ~ test, data = FP)
-dunn.test(FP$count, FP$test)
-```
-
-
-```{r} 
-#TP
-TP = plotme[plotme$metric == 'True Positive',]
-anovaModel <- aov(formula = count ~ test, data = TP)
-##test normal distribution of dependent variable
-shapiro.test(residuals(anovaModel))
-qqnorm(residuals(anovaModel))
-qqline(residuals(anovaModel))
-##test homogeneity of variances
-leveneTest(count ~ test, data = TP)
-
-print(summary(anovaModel))
-#post-hoc t-test
-TukeyHSD(anovaModel)
+ML = plotme[plotme$metric == 'Mislabelling',]
+friedman.test(count ~ test | vidID, data = ML)
+print(pairwise_wilcox_test(formula=count ~ test, data = ML, paired = TRUE,p.adjust.method = "holm"), n=100)
+print(tapply(ML$count, ML$test, mean))
 ```
